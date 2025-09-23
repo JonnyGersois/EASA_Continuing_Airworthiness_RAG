@@ -1,0 +1,79 @@
+# ==============================
+# Specific to this project
+# ==============================
+test_extractor.py
+
+
+
+
+# ==============================
+# 1️⃣  OS / Editor generated files
+# ==============================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# VS Code workspace & settings (usually you *do* want these if they are shared)
+# Uncomment the lines you want to keep out:
+# .vscode/
+# .vscodeignore
+# .code-workspace
+
+# ==============================
+# 2️⃣  Language / build artefacts
+# ==============================
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.coverage
+.coverage
+htmlcov/
+dist/
+build/
+*.manifest
+*.spec
+
+
+# ==============================
+# 3️⃣  Experimental / personal snippets
+# ==============================
+# Anything under a folder called "sandbox", "experiments", "tmp", etc.
+sandbox/
+experiments/
+tmp/
+test_*.py
+scratch/
+*.scratch
+*.tmp
+*.bak
+
+# If you keep a personal "notes" file:
+notes.md
+personal.md
+
+# ==============================
+# 4️⃣  Secrets & environment files
+# ==============================
+.env
+.env.*
+.secret
+*.key
+*.pem
+
+# ==============================
+# 5️⃣  Misc / OS caches
+# ==============================
+.idea/
+*.iml
+*.sublime-workspace
+*.sublime-project
+*.tmproj
+*.swp
+*.swo
+*~
