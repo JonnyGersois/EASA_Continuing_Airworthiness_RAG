@@ -3,6 +3,8 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
+import time
+from datetime import datetime
 
 from extractor import extract_clean_xml_from_package, convert_xml_to_documents
 
@@ -102,6 +104,25 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []  # Stores conversation
 
 
+
+# Max chat turns to keep to prevent token overflow
+MAX_HISTORY_TURNS = 10  
+
+def get_truncated_history():
+    history = st.session_state.chat_history
+    if len(history) > MAX_HISTORY_TURNS:
+        # Keep only the last N turns
+        truncated = history[-MAX_HISTORY_TURNS:]
+        # Notify user
+        st.warning(
+            f"Conversation exceeded {MAX_HISTORY_TURNS} turns. "
+            "Older messages have been truncated. "
+            "If context seems incomplete, use 'Clear conversation' to start fresh."
+        )
+        return truncated
+    return history
+
+
 # Sidebar
 with st.sidebar:
     st.header("Settings")
@@ -123,20 +144,39 @@ with st.sidebar:
         key="retrieval_k"
     )
 
-    # Conversation management
-    if st.session_state.chat_history:
-        # Download chat as markdown
+    # Input for download filename prefix
+    file_prefix = st.text_input("Filename prefix", value="conversation", key="fname_prefix")
+
+    # Check if conversation exists
+    history_exists = bool(st.session_state.chat_history)
+
+    if history_exists:
+        st.success(f"Conversation active. {len(st.session_state.chat_history)} turns recorded.")
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{file_prefix}_{timestamp}.md"
         md_text = "\n\n".join(
             [f"**User:** {turn['user']}\n\n**Assistant:** {turn['assistant']}" 
              for turn in st.session_state.chat_history]
         )
-        st.download_button("Download conversation", data=md_text, file_name="conversation.md")
+    else:
+        st.info("No active conversation. Ask a question to begin.")
+        filename, md_text = "conversation.md", "No conversation recorded yet."
 
-        # Clear conversation
-        if st.button("Clear conversation"):
-            st.session_state.chat_history = []
-            st.experimental_rerun()
+    # Download button
+    st.download_button(
+        "Download conversation",
+        data=md_text,
+        file_name=filename,
+        disabled=not history_exists,
+        key="download_btn"
+    )
 
+    # Clear button
+    if st.button("Clear conversation", disabled=not history_exists, key="clear_btn"):
+        st.session_state.chat_history = []
+        st.rerun()
+        
 
 @st.cache_resource
 def load_pipeline():
@@ -159,14 +199,15 @@ if groq_api_key:
     user_q = st.chat_input("Ask a question about Continuing Airworthiness Regulation (EU) 1321/2014...")
     if user_q:
         with st.spinner("Searching through the regulations..."):
+            # Get truncated history to avoid huge token usage
+            truncated_history = get_truncated_history()
 
-            # Convert history into structured messages
+            # Convert structured chat history
             history_msgs = []
-            for turn in st.session_state.chat_history:
+            for turn in truncated_history:
                 history_msgs.append({"role": "human", "content": turn["user"]})
                 history_msgs.append({"role": "ai", "content": turn["assistant"]})
 
-            # Give chain both history + new input
             response = rag_chain.invoke({
                 "chat_history": history_msgs,
                 "input": user_q
@@ -177,6 +218,9 @@ if groq_api_key:
 
         # Save to history
         st.session_state.chat_history.append({"user": user_q, "assistant": answer_content})
+        
+        # 🔑 Force re-render so sidebar picks up updated history immediately
+        st.rerun()
 
     # Display full conversation so far
     for turn in st.session_state.chat_history:
