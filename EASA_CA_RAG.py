@@ -78,6 +78,7 @@ def create_conversational_chain(retriever, model_name="llama-3.1-8b-instant"):
     """
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
+        ("placeholder", "{chat_history}"),   # history threaded properly
         ("human", "{input}")
     ])
     qa_chain = prompt | llm
@@ -97,6 +98,9 @@ if "model_name" not in st.session_state:
     st.session_state.model_name = "llama-3.1-8b-instant"
 if "retrieval_k" not in st.session_state:
     st.session_state.retrieval_k = 5
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []  # Stores conversation
+
 
 # Sidebar
 with st.sidebar:
@@ -107,7 +111,7 @@ with st.sidebar:
             "llama-3.1-8b-instant",
             "gemma2-9b-it",
             "qwen/qwen3-32b",
-            "openai/gpt-oss-20b"
+            "openai/gpt-oss-20b",
             "openai/gpt-oss-120b",
         ],
         key="model_name"
@@ -118,6 +122,20 @@ with st.sidebar:
         value=st.session_state.retrieval_k,
         key="retrieval_k"
     )
+
+    # Conversation management
+    if st.session_state.chat_history:
+        # Download chat as markdown
+        md_text = "\n\n".join(
+            [f"**User:** {turn['user']}\n\n**Assistant:** {turn['assistant']}" 
+             for turn in st.session_state.chat_history]
+        )
+        st.download_button("Download conversation", data=md_text, file_name="conversation.md")
+
+        # Clear conversation
+        if st.button("Clear conversation"):
+            st.session_state.chat_history = []
+            st.experimental_rerun()
 
 
 @st.cache_resource
@@ -141,12 +159,29 @@ if groq_api_key:
     user_q = st.chat_input("Ask a question about Continuing Airworthiness Regulation (EU) 1321/2014...")
     if user_q:
         with st.spinner("Searching through the regulations..."):
-            response = rag_chain.invoke({"input": user_q})
 
-        # Results
-        st.chat_message("user").markdown(user_q)
-        # st.chat_message("assistant").markdown(response["answer"])
-        answer_content = response["answer"].content if hasattr(response["answer"], 'content') else response["answer"]
-        st.chat_message("assistant").markdown(answer_content)
+            # Convert history into structured messages
+            history_msgs = []
+            for turn in st.session_state.chat_history:
+                history_msgs.append({"role": "human", "content": turn["user"]})
+                history_msgs.append({"role": "ai", "content": turn["assistant"]})
+
+            # Give chain both history + new input
+            response = rag_chain.invoke({
+                "chat_history": history_msgs,
+                "input": user_q
+            })
+
+        # Extract assistant answer
+        answer_content = response["answer"].content if hasattr(response["answer"], "content") else response["answer"]
+
+        # Save to history
+        st.session_state.chat_history.append({"user": user_q, "assistant": answer_content})
+
+    # Display full conversation so far
+    for turn in st.session_state.chat_history:
+        st.chat_message("user").markdown(turn["user"])
+        st.chat_message("assistant").markdown(turn["assistant"])
+
 else:
     st.warning("Please enter your GROQ_API_KEY in .env or environment variables.")
