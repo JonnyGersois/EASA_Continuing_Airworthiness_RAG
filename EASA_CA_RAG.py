@@ -128,70 +128,85 @@ def get_truncated_history():
 with st.sidebar:
     st.header("Settings")
 
-    # Groq API Key handling
-    if not st.session_state.groq_api_key:
+    if not st.session_state.get("groq_api_key", ""):
         st.warning("No GROQ_API_KEY found. Please enter it below:")
-        entered_key = st.text_input("Groq API Key", type="password", key="groq_api_input")
 
-        if entered_key:  # user typed something
+        entered_key = st.text_input(
+            "Groq API Key",
+            type="password",
+            key="groq_api_input"
+        )
+
+        # Add short instructions with link (opens new tab)
+        st.markdown(
+            """
+            To use this assistant you need a **Groq API key**.  
+            You can obtain one for free here:  
+            [Get a Groq API Key](https://console.groq.com/keys)
+            """,
+            unsafe_allow_html=True
+        )
+
+        if entered_key:
             st.session_state.groq_api_key = entered_key
             os.environ["GROQ_API_KEY"] = entered_key
-            st.success("Groq API Key entered successfully!")
-            st.rerun()  # force refresh so the input disappears
+            # st.success("Groq API Key configured successfully!")
+            st.rerun()
     else:
-        st.success("Groq API Key detected and ready.")
- 
-    st.selectbox(
-        "Choose an LLM:",
-        options=[
-            "llama-3.1-8b-instant",
-            "gemma2-9b-it",
-            "qwen/qwen3-32b",
-            "openai/gpt-oss-20b",
-            "openai/gpt-oss-120b",
-        ],
-        index=0, # Default model selection
-        key="model_name"
-    )
-    st.slider(
-        "Number of chunks to retrieve (k)",
-        min_value=2, max_value=20,
-        value=st.session_state.retrieval_k,
-        key="retrieval_k"
-    )
+        st.success("Groq API Key configured successfully.")
 
-    # Input for download filename prefix
-    file_prefix = st.text_input("Filename prefix", value="conversation", key="fname_prefix")
-
-    # Check if conversation exists
-    history_exists = bool(st.session_state.chat_history)
-
-    if history_exists:
-        st.success(f"Conversation active. {len(st.session_state.chat_history)} turns recorded.")
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{file_prefix}_{timestamp}.md"
-        md_text = "\n\n".join(
-            [f"**User:** {turn['user']}\n\n**Assistant:** {turn['assistant']}" 
-             for turn in st.session_state.chat_history]
+        # Only show detailed settings if API key is set
+        st.selectbox(
+            "Choose an LLM:",
+            options=[
+                "llama-3.1-8b-instant",
+                "gemma2-9b-it",
+                "qwen/qwen3-32b",
+                "openai/gpt-oss-20b",
+                "openai/gpt-oss-120b",
+            ],
+            index=0, # Default model selection
+            key="model_name"
         )
-    else:
-        st.info("No active conversation. Ask a question to begin.")
-        filename, md_text = "conversation.md", "No conversation recorded yet."
+        st.slider(
+            "Number of chunks to retrieve (k)",
+            min_value=2, max_value=20,
+            value=st.session_state.get("retrieval_k",5),
+            key="retrieval_k"
+        )
 
-    # Download button
-    st.download_button(
-        "Download conversation",
-        data=md_text,
-        file_name=filename,
-        disabled=not history_exists,
-        key="download_btn"
-    )
+        # Input for download filename prefix
+        file_prefix = st.text_input("Filename prefix", value="conversation", key="fname_prefix")
 
-    # Clear button
-    if st.button("Clear conversation", disabled=not history_exists, key="clear_btn"):
-        st.session_state.chat_history = []
-        st.rerun()
+        # Check if conversation exists
+        history_exists = bool(st.session_state.chat_history)
+
+        if history_exists:
+            st.success(f"Conversation active. {len(st.session_state.chat_history)} turns recorded.")
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{file_prefix}_{timestamp}.md"
+            md_text = "\n\n".join(
+                [f"**User:** {turn['user']}\n\n**Assistant:** {turn['assistant']}" 
+                for turn in st.session_state.chat_history]
+            )
+        else:
+            st.info("No active conversation. Ask a question to begin.")
+            filename, md_text = "conversation.md", "No conversation recorded yet."
+
+        # Download button
+        st.download_button(
+            "Download conversation",
+            data=md_text,
+            file_name=filename,
+            disabled=not history_exists,
+            key="download_btn"
+        )
+
+        # Clear button
+        if st.button("Clear conversation", disabled=not history_exists, key="clear_btn"):
+            st.session_state.chat_history = []
+            st.rerun()
         
 # --------------------
 # Cached Retriever
@@ -214,7 +229,7 @@ def load_retriever(retrieval_k: int):
 # --------------------
 if st.session_state.groq_api_key:
     # Cached retriever stays based on retrieval_k
-    retriever = load_retriever(st.session_state.retrieval_k)
+    retriever = load_retriever(st.session_state.get("retrieval_k",5))
 
     # Always build conversational chain with *current* model dropdown
     rag_chain = create_conversational_chain(
