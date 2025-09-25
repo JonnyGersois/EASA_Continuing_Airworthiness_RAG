@@ -178,8 +178,24 @@ with st.sidebar:
         st.rerun()
         
 
+# @st.cache_resource
+# def load_pipeline():
+#     xml_path = os.path.join("data", "Easy Access Rules for Continuing Airworthiness (Regulation (EU) No 13212014).xml")
+#     clean_path = os.path.join("data", "easa_clean.xml")
+
+#     clean_xml = extract_clean_xml_from_package(xml_path, save_clean_path=clean_path)
+#     docs = convert_xml_to_documents(clean_xml)
+#     chunks = chunk_documents(docs)
+
+#     retriever = build_hybrid_retriever(chunks, k=st.session_state.retrieval_k)
+#     rag_chain = create_conversational_chain(retriever, model_name=st.session_state.model_name)
+#     return rag_chain
+# --------------------
+# Cached Retriever
+# --------------------
 @st.cache_resource
-def load_pipeline():
+def load_retriever(retrieval_k: int):
+    """Heavy work (parse XML, chunk, build retriever) cached by k."""
     xml_path = os.path.join("data", "Easy Access Rules for Continuing Airworthiness (Regulation (EU) No 13212014).xml")
     clean_path = os.path.join("data", "easa_clean.xml")
 
@@ -187,13 +203,21 @@ def load_pipeline():
     docs = convert_xml_to_documents(clean_xml)
     chunks = chunk_documents(docs)
 
-    retriever = build_hybrid_retriever(chunks, k=st.session_state.retrieval_k)
-    rag_chain = create_conversational_chain(retriever, model_name=st.session_state.model_name)
-    return rag_chain
+    retriever = build_hybrid_retriever(chunks, k=retrieval_k)
+    return retriever
+
 
 
 if groq_api_key:
-    rag_chain = load_pipeline()
+    # rag_chain = load_pipeline()
+    # Cached retriever stays based on retrieval_k
+    retriever = load_retriever(st.session_state.retrieval_k)
+
+    # Always build conversational chain with *current* model dropdown
+    rag_chain = create_conversational_chain(
+        retriever,
+        model_name=st.session_state.model_name
+    )
 
     # Chat interface
     user_q = st.chat_input("Ask a question about Continuing Airworthiness Regulation (EU) 1321/2014...")
