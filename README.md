@@ -86,7 +86,7 @@ Access in your browser at [http://localhost:8501](http://localhost:8501).
 
 3. **RAG flow**
    - Retrieved context + conversation history feed into a LangChain `ChatPromptTemplate`.
-   - LLM (via Groq API) answers in plain English, citing official reg references.
+   - LLM (via Groq API) answers in plain English, citing official regulation references.
 
 ---
 
