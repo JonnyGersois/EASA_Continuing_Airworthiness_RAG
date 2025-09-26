@@ -4,7 +4,8 @@ A **Streamlit Retrieval-Augmented Generation (RAG) app** for querying the **EASA
 
 This project combines modern LLMs from [Groq](https://groq.com/) with a hybrid search pipeline (semantic + lexical) to provide precise, regulation‑grounded answers.  
 
-There is a working demo of this project hosted on [Streamlit cloud](https://easa-continuing-airworthiness-regulations.streamlit.app/).
+There is a working demo of this project hosted on [Streamlit cloud](https://easa-continuing-airworthiness-regulations.streamlit.app/).  
+
 ---
 
 ## Features
